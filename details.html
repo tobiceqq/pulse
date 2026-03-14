@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <title>Pulse - Details</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="images/logo.png" alt="pulse_logo" class="logo">
+      <div class="brand">PULSE</div>
+    </div>
+
+    <div class="actions">
+      <a href="settings.html" class="btn ghost">Settings</a>
+      <button id="logoutBtn" class="btn ghost hidden">Log out</button>
+    </div>
+  </header>
+
+  <main class="container details-page">
+    <button id="backBtn" class="back-link" type="button">← Back</button>
+
+    <section id="detailsCard" class="card hidden">
+      <div class="details-hero">
+        <img id="heroImg" class="details-img" alt="" />
+
+        <div class="details-head">
+          <div id="heroType" class="muted tiny">—</div>
+          <h1 id="heroTitle" class="details-title">—</h1>
+          <div id="heroSub" class="muted">—</div>
+
+          <div id="heroStats" class="details-stats"></div>
+
+          <div class="details-actions">
+            <a id="openSpotify" class="btn primary spotify-link" href="#" target="_blank" rel="noopener">
+              Open in Spotify
+            </a>
+          </div>
+
+          <div id="apiNote" class="muted tiny"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="listCard" class="card details-list-card hidden">
+      <div class="section-title">
+        <h2 id="listTitle">—</h2>
+        <span id="listStatus" class="muted tiny"></span>
+      </div>
+      <div id="listItems" class="items"></div>
+    </section>
+
+    <section id="errorBox" class="card error hidden"></section>
+  </main>
+
+  <script type="module" src="./details.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <title>Pulse - Settings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="images/logo.png" alt="pulse_logo" class="logo">
+      <div class="brand">PULSE</div>
+    </div>
+
+    <div class="actions">
+      <button id="logoutBtn" class="btn ghost hidden">Log out</button>
+    </div>
+  </header>
+
+  <main class="container settings-page">
+    <button id="backBtn" class="back-link" type="button">← Back</button>
+
+    <section class="card">
+      <div class="section-title">
+        <h2>Account</h2>
+      </div>
+
+      <div class="profile settings-profile">
+        <div class="profile-left">
+          <img id="avatar" class="avatar avatar-lg" alt="Avatar" />
+          <div>
+            <div id="displayName" class="name">—</div>
+            <div id="email" class="muted tiny">—</div>
+            <div id="country" class="muted tiny">Country: —</div>
+            <div id="plan" class="muted tiny">Spotify plan: —</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-title">
+        <h2>Appearance</h2>
+      </div>
+
+      <div class="settings-group">
+        <div class="setting-row">
+          <div>
+            <div class="setting-title">Theme</div>
+            <div class="setting-sub">Choose how Pulse looks.</div>
+          </div>
+
+          <div class="theme-switch">
+            <button id="themeDarkBtn" class="chip active" type="button">Dark</button>
+            <button id="themeLightBtn" class="chip" type="button">Light</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-title">
+        <h2>Coming next</h2>
+      </div>
+
+      <div class="settings-list">
+        <div class="settings-note">Language switch</div>
+        <div class="settings-note">Compact mode</div>
+        <div class="settings-note">Show / hide profile email</div>
+        <div class="settings-note">Default stats range</div>
+      </div>
+    </section>
+
+    <section id="errorBox" class="card error hidden"></section>
+  </main>
+
+  <script type="module" src="./settings.js"></script>
+</body>
+</html>

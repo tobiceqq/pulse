@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <title>Pulse</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="images/logo.png" alt="pulse_logo" class="logo">
+      <div class="brand">PULSE</div>
+    </div>
+
+    <div class="actions">
+      <a id="settingsBtn" href="settings.html" class="btn ghost hidden">Settings</a>
+      <button id="logoutBtn" class="btn ghost hidden">Log out</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="landing" class="card">
+      <h1>Spotify stats, simplified.</h1>
+      <p class="muted">Log in to see your top artists, tracks and genres.</p>
+      <button id="loginBtn" class="btn primary">Log in with Spotify</button>
+      <p class="tiny muted">Uses Spotify OAuth (PKCE). No password is stored.</p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="profile card">
+        <div class="profile-left">
+          <img id="avatar" class="avatar" alt="Avatar" />
+          <div>
+            <div id="displayName" class="name">—</div>
+            <div id="email" class="muted tiny">—</div>
+          </div>
+        </div>
+
+        <div class="range">
+          <button class="chip active" data-range="short_term">4 weeks</button>
+          <button class="chip" data-range="medium_term">6 months</button>
+          <button class="chip" data-range="long_term">1 year</button>
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <section class="card">
+          <div class="section-title">
+            <h2>Top Artists</h2>
+            <span id="artistsStatus" class="muted tiny"></span>
+          </div>
+          <div id="artists" class="items"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">
+            <h2>Top Tracks</h2>
+            <span id="tracksStatus" class="muted tiny"></span>
+          </div>
+          <div id="tracks" class="items"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">
+            <h2>Top Genres</h2>
+            <span id="genresStatus" class="muted tiny"></span>
+          </div>
+          <div id="genres" class="items"></div>
+        </section>
+      </div>
+
+      <section id="errorBox" class="card error hidden"></section>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
