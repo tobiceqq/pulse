@@ -1,5 +1,11 @@
 import { startLogin, handleRedirectAndGetToken, getToken, clearToken } from "./spotify-auth.js";
-import { getMe, getTopArtists, getTopTracks } from "./spotify-api.js";
+import {
+  getMe,
+  getTopArtists,
+  getTopTracks,
+  createPlaylist,
+  addTracksToPlaylist,
+} from "./spotify-api.js";
 
 const CLIENT_ID = "95a992ec0b484251be1e6dd3ada29d35";
 const REDIRECT_URI = "https://tobiceqq.github.io/pulse/";
@@ -8,6 +14,7 @@ const SCOPES = [
   "user-top-read",
   "user-read-email",
   "user-read-private",
+  "playlist-modify-private",
 ];
 
 const THEME_KEY = "pulse_theme";
@@ -31,9 +38,14 @@ const artistsStatus = document.getElementById("artistsStatus");
 const tracksStatus = document.getElementById("tracksStatus");
 const genresStatus = document.getElementById("genresStatus");
 
+const createPlaylistBtn = document.getElementById("createPlaylistBtn");
+const playlistStatus = document.getElementById("playlistStatus");
+
 const errorBox = document.getElementById("errorBox");
 
 let currentRange = "short_term";
+let currentUser = null;
+let currentTracks = [];
 
 function applyTheme() {
   const theme = localStorage.getItem(THEME_KEY) || "dark";
@@ -93,6 +105,13 @@ function setLoading(which, isLoading) {
   if (which === "genres") genresStatus.textContent = value;
 }
 
+function setPlaylistStatus(message, type = "muted") {
+  playlistStatus.textContent = message || "";
+  playlistStatus.classList.remove("success", "error-text");
+  if (type === "success") playlistStatus.classList.add("success");
+  if (type === "error") playlistStatus.classList.add("error-text");
+}
+
 function showDashboard() {
   landing.classList.add("hidden");
   dashboard.classList.remove("hidden");
@@ -120,6 +139,12 @@ function buildTopGenres(artists) {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, TOP_LIMIT)
     .map(([name, count]) => ({ name, count }));
+}
+
+function getRangeLabel(range) {
+  if (range === "short_term") return "Top Tracks - 4 Weeks";
+  if (range === "medium_term") return "Top Tracks - 6 Months";
+  return "Top Tracks - 1 Year";
 }
 
 function renderArtists(items) {
@@ -185,6 +210,8 @@ function renderGenres(items) {
 
 async function loadProfile(token) {
   const me = await getMe(token);
+  currentUser = me;
+
   displayName.textContent = me.display_name || "Unknown";
   email.textContent = me.email || "";
   avatar.src = me.images?.[0]?.url || "";
@@ -193,6 +220,9 @@ async function loadProfile(token) {
 
 async function loadStats(token) {
   setError(null);
+  setPlaylistStatus("");
+  createPlaylistBtn.disabled = true;
+
   setLoading("artists", true);
   setLoading("tracks", true);
   setLoading("genres", true);
@@ -207,15 +237,71 @@ async function loadStats(token) {
     const trackItems = tracksRes.items || [];
     const genreItems = buildTopGenres(artistItems);
 
+    currentTracks = trackItems;
+
     renderArtists(artistItems);
     renderTracks(trackItems);
     renderGenres(genreItems);
+
+    createPlaylistBtn.disabled = !currentTracks.length;
   } catch (e) {
+    currentTracks = [];
+    createPlaylistBtn.disabled = true;
     setError(e.message || String(e));
   } finally {
     setLoading("artists", false);
     setLoading("tracks", false);
     setLoading("genres", false);
+  }
+}
+
+async function handleCreatePlaylist() {
+  const token = getToken();
+  if (!token) {
+    showLanding();
+    return;
+  }
+
+  if (!currentUser?.id) {
+    setPlaylistStatus("User profile is not loaded yet.", "error");
+    return;
+  }
+
+  if (!currentTracks.length) {
+    setPlaylistStatus("There are no tracks to add.", "error");
+    return;
+  }
+
+  const uris = currentTracks
+    .map((track) => track.uri)
+    .filter(Boolean);
+
+  if (!uris.length) {
+    setPlaylistStatus("No valid Spotify tracks were found.", "error");
+    return;
+  }
+
+  createPlaylistBtn.disabled = true;
+  setPlaylistStatus("Creating playlist...");
+
+  try {
+    const playlist = await createPlaylist(token, currentUser.id, {
+      name: `Pulse • ${getRangeLabel(currentRange)}`,
+      description: `Created with Pulse from your current top tracks (${currentRange}).`,
+      isPublic: false,
+    });
+
+    await addTracksToPlaylist(token, playlist.id, uris);
+
+    setPlaylistStatus("Playlist created successfully.", "success");
+
+    if (playlist?.external_urls?.spotify) {
+      window.open(playlist.external_urls.spotify, "_blank", "noopener");
+    }
+  } catch (e) {
+    setPlaylistStatus(e.message || String(e), "error");
+  } finally {
+    createPlaylistBtn.disabled = !currentTracks.length;
   }
 }
 
@@ -234,9 +320,14 @@ loginBtn?.addEventListener("click", async () => {
 
 logoutBtn?.addEventListener("click", () => {
   clearToken();
+  currentUser = null;
+  currentTracks = [];
   showLanding();
   setError(null);
+  setPlaylistStatus("");
 });
+
+createPlaylistBtn?.addEventListener("click", handleCreatePlaylist);
 
 document.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -257,6 +348,7 @@ document.querySelectorAll(".chip").forEach((btn) => {
 (async function boot() {
   try {
     applyTheme();
+    createPlaylistBtn.disabled = true;
 
     if (CLIENT_ID && CLIENT_ID !== "PASTE_YOUR_CLIENT_ID_HERE") {
       await handleRedirectAndGetToken({
@@ -276,7 +368,10 @@ document.querySelectorAll(".chip").forEach((btn) => {
     await loadStats(token);
   } catch (e) {
     clearToken();
+    currentUser = null;
+    currentTracks = [];
     showLanding();
     setError(e.message || String(e));
+    setPlaylistStatus("");
   }
 })();

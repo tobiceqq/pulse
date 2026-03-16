@@ -12,6 +12,9 @@
   --primary3:#d9cbff;
   --primary-ink:#ffffff;
 
+  --success:#22c55e;
+  --danger:#ef4444;
+
   --shadow:0 10px 26px rgba(0,0,0,.28);
 }
 
@@ -27,6 +30,8 @@ body.light-theme{
   --primary2:#7c3aed;
   --primary3:#6d28d9;
   --primary-ink:#ffffff;
+  --success:#15803d;
+  --danger:#b91c1c;
   --shadow:0 10px 26px rgba(21,27,44,.08);
 }
 
@@ -130,6 +135,19 @@ a:active{
   gap:12px;
 }
 
+.topbar-home{
+  cursor:pointer;
+  transition:opacity .18s ease, transform .18s ease;
+}
+
+.topbar-home:hover{
+  opacity:.92;
+}
+
+.topbar-home:active{
+  transform:translateY(1px);
+}
+
 .actions{
   display:flex;
   align-items:center;
@@ -165,7 +183,7 @@ a:active{
   padding:10px 14px;
   border-radius:12px;
   cursor:pointer;
-  transition:border-color .18s ease, background .18s ease, color .18s ease;
+  transition:border-color .18s ease, background .18s ease, color .18s ease, opacity .18s ease, transform .18s ease;
 }
 
 body.light-theme .btn{
@@ -174,6 +192,11 @@ body.light-theme .btn{
 
 .btn:hover{
   border-color:rgba(167,139,250,.45);
+}
+
+.btn:disabled{
+  opacity:.6;
+  cursor:not-allowed;
 }
 
 .btn.primary{
@@ -185,6 +208,29 @@ body.light-theme .btn{
 
 .btn.ghost{
   background:transparent;
+}
+
+body.light-theme .btn.primary{
+  background:rgba(255,255,255,.95);
+  border-color:rgba(139,92,246,.34);
+  color:var(--primary3);
+}
+
+body.light-theme .btn.primary:hover{
+  background:rgba(248,245,255,.98);
+  border-color:rgba(124,58,237,.44);
+}
+
+body.light-theme .btn.ghost{
+  background:linear-gradient(180deg, var(--primary), var(--primary2));
+  border-color:rgba(124,58,237,.36);
+  color:var(--primary-ink);
+  font-weight:800;
+}
+
+body.light-theme .btn.ghost:hover{
+  border-color:rgba(124,58,237,.5);
+  filter:brightness(.98);
 }
 
 .profile{
@@ -290,6 +336,16 @@ body.light-theme .chip{
   color:var(--text);
   font-size:1.05rem;
   font-weight:800;
+}
+
+.section-actions{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid var(--border);
 }
 
 .items{
@@ -404,6 +460,10 @@ body.light-theme .back-link{
   color:var(--primary3);
   border-color:rgba(167,139,250,.45);
   background:rgba(30,28,48,.82);
+}
+
+body.light-theme .back-link:hover{
+  background:rgba(244,240,255,.98);
 }
 
 .details-hero{
@@ -546,6 +606,14 @@ body.light-theme .error{
 
 .tiny{
   font-size:12px;
+}
+
+.success{
+  color:var(--success);
+}
+
+.error-text{
+  color:var(--danger);
 }
 
 #artistsStatus,

@@ -1,9 +1,12 @@
 const API_BASE = "https://api.spotify.com/v1";
 
-async function spotifyGet(path, token) {
+async function spotifyRequest(path, token, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
     },
   });
 
@@ -16,7 +19,18 @@ async function spotifyGet(path, token) {
     throw new Error(`Spotify API error (${res.status}): ${text}`);
   }
 
-  return res.json();
+  if (res.status === 204) return null;
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+
+  return null;
+}
+
+async function spotifyGet(path, token) {
+  return spotifyRequest(path, token, { method: "GET" });
 }
 
 export async function getMe(token) {
@@ -45,6 +59,26 @@ export async function getArtist(token, artistId) {
 
 export async function getTrack(token, trackId) {
   return spotifyGet(`/tracks/${encodeURIComponent(trackId)}`, token);
+}
+
+export async function createPlaylist(token, userId, { name, description = "", isPublic = false }) {
+  return spotifyRequest(`/users/${encodeURIComponent(userId)}/playlists`, token, {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      description,
+      public: isPublic,
+    }),
+  });
+}
+
+export async function addTracksToPlaylist(token, playlistId, uris = []) {
+  if (!uris.length) return null;
+
+  return spotifyRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks`, token, {
+    method: "POST",
+    body: JSON.stringify({ uris }),
+  });
 }
 
 export function msToMinSec(ms) {

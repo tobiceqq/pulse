@@ -9,10 +9,10 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="topbar-left">
+    <a href="index.html" class="topbar-left topbar-home" aria-label="Go to Pulse homepage">
       <img src="images/Pulse_Logo.png" alt="pulse_logo" class="logo">
       <div class="brand">PULSE</div>
-    </div>
+    </a>
 
     <div class="actions">
       <a id="settingsBtn" href="settings.html" class="btn ghost hidden">Settings</a>
@@ -60,6 +60,13 @@
             <span id="tracksStatus" class="muted tiny"></span>
           </div>
           <div id="tracks" class="items"></div>
+
+          <div class="section-actions">
+            <button id="createPlaylistBtn" class="btn primary" type="button">
+              Create playlist
+            </button>
+            <div id="playlistStatus" class="muted tiny"></div>
+          </div>
         </section>
 
         <section class="card">
