@@ -18,6 +18,8 @@ const SCOPES = [
 ];
 
 const THEME_KEY = "pulse_theme";
+const AUTH_VERSION_KEY = "pulse_auth_scope_version";
+const AUTH_VERSION = "2";
 const TOP_LIMIT = 50;
 
 const landing = document.getElementById("landing");
@@ -50,6 +52,14 @@ let currentTracks = [];
 function applyTheme() {
   const theme = localStorage.getItem(THEME_KEY) || "dark";
   document.body.classList.toggle("light-theme", theme === "light");
+}
+
+function ensureAuthVersion() {
+  const savedVersion = localStorage.getItem(AUTH_VERSION_KEY);
+  if (savedVersion !== AUTH_VERSION) {
+    clearToken();
+    localStorage.setItem(AUTH_VERSION_KEY, AUTH_VERSION);
+  }
 }
 
 function escapeHtml(s) {
@@ -94,6 +104,7 @@ function setError(message) {
     errorBox.textContent = "";
     return;
   }
+
   errorBox.textContent = message;
   errorBox.classList.remove("hidden");
 }
@@ -107,7 +118,8 @@ function setLoading(which, isLoading) {
 
 function setPlaylistStatus(message, type = "muted") {
   playlistStatus.textContent = message || "";
-  playlistStatus.className = "muted tiny";
+  playlistStatus.classList.remove("success", "error-text");
+
   if (type === "success") playlistStatus.classList.add("success");
   if (type === "error") playlistStatus.classList.add("error-text");
 }
@@ -142,9 +154,9 @@ function buildTopGenres(artists) {
 }
 
 function getRangeLabel(range) {
-  if (range === "short_term") return "4 Weeks";
-  if (range === "medium_term") return "6 Months";
-  return "1 Year";
+  if (range === "short_term") return "Top Tracks - 4 Weeks";
+  if (range === "medium_term") return "Top Tracks - 6 Months";
+  return "Top Tracks - 1 Year";
 }
 
 function renderArtists(items) {
@@ -181,7 +193,7 @@ function renderTracks(items) {
 
   items.forEach((t, i) => {
     const img = t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || "";
-    const artists = (t.artists || []).map(x => x.name).join(", ");
+    const artists = (t.artists || []).map((x) => x.name).join(", ");
     const el = itemCard(i + 1, img, t.name, artists || "—");
 
     el.classList.add("clickable");
@@ -257,15 +269,27 @@ async function loadStats(token) {
 
 async function handleCreatePlaylist() {
   const token = getToken();
-  if (!token) return;
+  if (!token) {
+    showLanding();
+    return;
+  }
 
   if (!currentUser?.id) {
-    setPlaylistStatus("User profile not loaded.", "error");
+    setPlaylistStatus("User profile is not loaded yet.", "error");
     return;
   }
 
   if (!currentTracks.length) {
-    setPlaylistStatus("No tracks found to create playlist.", "error");
+    setPlaylistStatus("There are no tracks to add.", "error");
+    return;
+  }
+
+  const uris = currentTracks
+    .map((track) => track.uri)
+    .filter(Boolean);
+
+  if (!uris.length) {
+    setPlaylistStatus("No valid Spotify tracks were found.", "error");
     return;
   }
 
@@ -273,31 +297,33 @@ async function handleCreatePlaylist() {
   setPlaylistStatus("Creating playlist...");
 
   try {
-    const name = `Pulse • ${getRangeLabel(currentRange)}`;
-    const description = `My top tracks from the last ${getRangeLabel(currentRange).toLowerCase()}, created via Pulse.`;
-    
-    // 1. Create playlist
     const playlist = await createPlaylist(token, currentUser.id, {
-      name,
-      description,
-      isPublic: false
+      name: `Pulse • ${getRangeLabel(currentRange)}`,
+      description: `Created with Pulse from your current top tracks (${currentRange}).`,
+      isPublic: false,
     });
 
-    // 2. Add tracks
-    const trackUris = currentTracks.map(t => t.uri);
-    await addTracksToPlaylist(token, playlist.id, trackUris);
+    await addTracksToPlaylist(token, playlist.id, uris);
 
-    setPlaylistStatus("Playlist created successfully!", "success");
-    
-    // Open in new tab
-    if (playlist.external_urls?.spotify) {
-      window.open(playlist.external_urls.spotify, "_blank");
+    setPlaylistStatus("Playlist created successfully.", "success");
+
+    if (playlist?.external_urls?.spotify) {
+      window.open(playlist.external_urls.spotify, "_blank", "noopener");
     }
   } catch (e) {
-    console.error(e);
-    setPlaylistStatus("Failed to create playlist.", "error");
+    const message = e.message || String(e);
+
+    if (message.includes("403")) {
+      clearToken();
+      setPlaylistStatus("Spotify needs new permission for playlist creation. Please log in again.", "error");
+      setError("Your previous login does not include playlist permission yet. Log in again and then try Create playlist once more.");
+      showLanding();
+      return;
+    }
+
+    setPlaylistStatus(message, "error");
   } finally {
-    createPlaylistBtn.disabled = false;
+    createPlaylistBtn.disabled = !currentTracks.length;
   }
 }
 
@@ -327,7 +353,7 @@ createPlaylistBtn?.addEventListener("click", handleCreatePlaylist);
 
 document.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".range .chip").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentRange = btn.dataset.range;
 
@@ -344,7 +370,9 @@ document.querySelectorAll(".chip").forEach((btn) => {
 (async function boot() {
   try {
     applyTheme();
-    
+    ensureAuthVersion();
+    createPlaylistBtn.disabled = true;
+
     if (CLIENT_ID && CLIENT_ID !== "PASTE_YOUR_CLIENT_ID_HERE") {
       await handleRedirectAndGetToken({
         clientId: CLIENT_ID,
