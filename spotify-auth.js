@@ -1,10 +1,11 @@
-const TOKEN_KEY = "pulse_token_v1";
-const VERIFIER_KEY = "pulse_verifier_v1";
+const TOKEN_KEY = "pulse_token_v3";
+const VERIFIER_KEY = "pulse_verifier_v3";
+const SCOPES_KEY = "pulse_scopes_v3";
 
 function base64UrlEncode(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
+  for (let i = 0; i < bytes.byteLength; i += 1) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -29,7 +30,7 @@ function readTokenData() {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed?.access_token || !parsed?.expires_at) return null;
-    if (Date.now() > parsed.expires_at) return null;
+    if (Date.now() >= parsed.expires_at) return null;
     return parsed;
   } catch {
     return null;
@@ -37,24 +38,25 @@ function readTokenData() {
 }
 
 export function getToken() {
-  const tokenData = readTokenData();
-  return tokenData?.access_token || null;
+  return readTokenData()?.access_token || null;
 }
 
 export function getGrantedScopes() {
   const tokenData = readTokenData();
-  const scopeString = tokenData?.scope || "";
+  const scopeString = tokenData?.scope || localStorage.getItem(SCOPES_KEY) || "";
   return scopeString.split(" ").map((s) => s.trim()).filter(Boolean);
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(VERIFIER_KEY);
+  localStorage.removeItem(SCOPES_KEY);
 }
 
 export async function startLogin({ clientId, redirectUri, scopes }) {
   const verifier = randomString(64);
   localStorage.setItem(VERIFIER_KEY, verifier);
+  localStorage.setItem(SCOPES_KEY, scopes.join(" "));
 
   const challenge = base64UrlEncode(await sha256(verifier));
 
@@ -109,15 +111,15 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
   }
 
   const data = await res.json();
-  const expires_at = Date.now() + (data.expires_in * 1000) - 5000;
+  const expiresAt = Date.now() + (data.expires_in * 1000) - 10000;
 
   localStorage.setItem(
     TOKEN_KEY,
     JSON.stringify({
       access_token: data.access_token,
-      expires_at,
-      scope: data.scope || "",
       token_type: data.token_type || "Bearer",
+      scope: data.scope || localStorage.getItem(SCOPES_KEY) || "",
+      expires_at: expiresAt,
     })
   );
 

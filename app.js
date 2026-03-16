@@ -48,7 +48,6 @@ const genresStatus = document.getElementById("genresStatus");
 
 const createPlaylistBtn = document.getElementById("createPlaylistBtn");
 const playlistStatus = document.getElementById("playlistStatus");
-
 const errorBox = document.getElementById("errorBox");
 
 let currentRange = "short_term";
@@ -103,7 +102,6 @@ function setError(message) {
     errorBox.textContent = "";
     return;
   }
-
   errorBox.textContent = message;
   errorBox.classList.remove("hidden");
 }
@@ -118,7 +116,6 @@ function setLoading(which, isLoading) {
 function setPlaylistStatus(message, type = "muted") {
   playlistStatus.textContent = message || "";
   playlistStatus.classList.remove("success", "error-text");
-
   if (type === "success") playlistStatus.classList.add("success");
   if (type === "error") playlistStatus.classList.add("error-text");
 }
@@ -174,7 +171,6 @@ function updatePlaylistButtonState() {
 
 function renderArtists(items) {
   artistsBox.innerHTML = "";
-
   if (!items?.length) {
     artistsBox.innerHTML = `<div class="muted tiny">No top artists yet.</div>`;
     return;
@@ -185,20 +181,12 @@ function renderArtists(items) {
     const genres = (a.genres || []).slice(0, 2).join(", ");
     const popularity = a.popularity != null ? `Popularity ${a.popularity}/100` : "Popularity —";
     const sub = genres ? `${genres} • ${popularity}` : popularity;
-
-    const el = itemCard(i + 1, img, a.name, sub);
-    el.classList.add("clickable");
-    el.addEventListener("click", () => {
-      window.location.href = `details.html?type=artist&id=${encodeURIComponent(a.id)}`;
-    });
-
-    artistsBox.appendChild(el);
+    artistsBox.appendChild(itemCard(i + 1, img, a.name, sub));
   });
 }
 
 function renderTracks(items) {
   tracksBox.innerHTML = "";
-
   if (!items?.length) {
     tracksBox.innerHTML = `<div class="muted tiny">No top tracks yet.</div>`;
     return;
@@ -207,29 +195,19 @@ function renderTracks(items) {
   items.forEach((t, i) => {
     const img = t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || "";
     const artists = (t.artists || []).map((x) => x.name).join(", ");
-    const el = itemCard(i + 1, img, t.name, artists || "—");
-
-    el.classList.add("clickable");
-    el.addEventListener("click", () => {
-      window.location.href = `details.html?type=track&id=${encodeURIComponent(t.id)}`;
-    });
-
-    tracksBox.appendChild(el);
+    tracksBox.appendChild(itemCard(i + 1, img, t.name, artists || "—"));
   });
 }
 
 function renderGenres(items) {
   genresBox.innerHTML = "";
-
   if (!items?.length) {
     genresBox.innerHTML = `<div class="muted tiny">No top genres yet.</div>`;
     return;
   }
 
   items.forEach((g, i) => {
-    genresBox.appendChild(
-      textCard(i + 1, g.name, `${g.count} artist${g.count === 1 ? "" : "s"}`)
-    );
+    genresBox.appendChild(textCard(i + 1, g.name, `${g.count} artist${g.count === 1 ? "" : "s"}`));
   });
 }
 
@@ -270,7 +248,6 @@ async function loadStats(token) {
     renderArtists(artistItems);
     renderTracks(trackItems);
     renderGenres(genreItems);
-
     updatePlaylistButtonState();
   } catch (e) {
     currentTracks = [];
@@ -294,7 +271,7 @@ async function handleCreatePlaylist() {
   }
 
   if (!hasPlaylistPermission()) {
-    setPlaylistStatus("Missing playlist permission. Log in again once and approve Spotify access.", "error");
+    setPlaylistStatus("Missing playlist permission. Log in once again and approve Spotify access.", "error");
     return;
   }
 
@@ -328,6 +305,10 @@ async function handleCreatePlaylist() {
     await addTracksToPlaylist(token, playlist.id, uris);
 
     setPlaylistStatus("Playlist created successfully.", "success");
+
+    if (playlist?.external_urls?.spotify) {
+      window.open(playlist.external_urls.spotify, "_blank", "noopener");
+    }
   } catch (e) {
     setPlaylistStatus(e.message || String(e), "error");
   } finally {
@@ -337,11 +318,6 @@ async function handleCreatePlaylist() {
 }
 
 loginBtn?.addEventListener("click", async () => {
-  if (!CLIENT_ID || CLIENT_ID === "PASTE_YOUR_CLIENT_ID_HERE") {
-    setError("Set your CLIENT_ID in app.js first.");
-    return;
-  }
-
   await startLogin({
     clientId: CLIENT_ID,
     redirectUri: REDIRECT_URI,
@@ -381,12 +357,10 @@ document.querySelectorAll(".range .chip").forEach((btn) => {
   try {
     applyTheme();
 
-    if (CLIENT_ID && CLIENT_ID !== "PASTE_YOUR_CLIENT_ID_HERE") {
-      await handleRedirectAndGetToken({
-        clientId: CLIENT_ID,
-        redirectUri: REDIRECT_URI,
-      });
-    }
+    await handleRedirectAndGetToken({
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+    });
 
     const token = getToken();
     if (!token) {

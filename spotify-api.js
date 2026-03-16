@@ -1,98 +1,134 @@
-const API_BASE = "https://api.spotify.com/v1";
+const TOKEN_KEY = "pulse_token_v3";
+const VERIFIER_KEY = "pulse_verifier_v3";
+const SCOPES_KEY = "pulse_scopes_v3";
 
-async function spotifyRequest(path, token, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {}),
-    },
+function base64UrlEncode(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function randomString(length = 64) {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => charset[b % charset.length]).join("");
+}
+
+async function sha256(text) {
+  const enc = new TextEncoder().encode(text);
+  return crypto.subtle.digest("SHA-256", enc);
+}
+
+function readTokenData() {
+  const raw = localStorage.getItem(TOKEN_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed?.access_token || !parsed?.expires_at) return null;
+    if (Date.now() >= parsed.expires_at) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function getToken() {
+  return readTokenData()?.access_token || null;
+}
+
+export function getGrantedScopes() {
+  const tokenData = readTokenData();
+  const scopeString = tokenData?.scope || localStorage.getItem(SCOPES_KEY) || "";
+  return scopeString.split(" ").map((s) => s.trim()).filter(Boolean);
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(VERIFIER_KEY);
+  localStorage.removeItem(SCOPES_KEY);
+}
+
+export async function startLogin({ clientId, redirectUri, scopes }) {
+  const verifier = randomString(64);
+  localStorage.setItem(VERIFIER_KEY, verifier);
+  localStorage.setItem(SCOPES_KEY, scopes.join(" "));
+
+  const challenge = base64UrlEncode(await sha256(verifier));
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    scope: scopes.join(" "),
+    code_challenge_method: "S256",
+    code_challenge: challenge,
+    show_dialog: "false",
   });
 
-  if (res.status === 401) {
-    throw new Error("Session expired. Please log in again.");
+  window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
+}
+
+export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
+  const url = new URL(window.location.href);
+
+  const error = url.searchParams.get("error");
+  if (error) {
+    throw new Error(`Spotify auth error: ${error}`);
   }
+
+  const code = url.searchParams.get("code");
+  if (!code) return null;
+
+  const verifier = localStorage.getItem(VERIFIER_KEY);
+  if (!verifier) {
+    throw new Error("Missing code verifier. Try logging in again.");
+  }
+
+  const body = new URLSearchParams({
+    client_id: clientId,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+    code_verifier: verifier,
+  });
+
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Spotify API error (${res.status}): ${text}`);
+    throw new Error(`Token exchange failed (${res.status}). ${text}`);
   }
 
-  if (res.status === 204) return null;
+  const data = await res.json();
+  const expiresAt = Date.now() + (data.expires_in * 1000) - 10000;
 
-  const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return res.json();
-  }
+  localStorage.setItem(
+    TOKEN_KEY,
+    JSON.stringify({
+      access_token: data.access_token,
+      token_type: data.token_type || "Bearer",
+      scope: data.scope || localStorage.getItem(SCOPES_KEY) || "",
+      expires_at: expiresAt,
+    })
+  );
 
-  return null;
-}
+  localStorage.removeItem(VERIFIER_KEY);
 
-async function spotifyGet(path, token) {
-  return spotifyRequest(path, token, { method: "GET" });
-}
+  url.searchParams.delete("code");
+  url.searchParams.delete("state");
+  url.searchParams.delete("error");
+  window.history.replaceState({}, document.title, url.pathname + url.search);
 
-export async function getMe(token) {
-  return spotifyGet("/me", token);
-}
-
-export async function getTopArtists(token, range = "short_term", limit = 50) {
-  const qs = new URLSearchParams({
-    time_range: range,
-    limit: String(limit),
-  });
-  return spotifyGet(`/me/top/artists?${qs.toString()}`, token);
-}
-
-export async function getTopTracks(token, range = "short_term", limit = 50) {
-  const qs = new URLSearchParams({
-    time_range: range,
-    limit: String(limit),
-  });
-  return spotifyGet(`/me/top/tracks?${qs.toString()}`, token);
-}
-
-export async function getArtist(token, artistId) {
-  return spotifyGet(`/artists/${encodeURIComponent(artistId)}`, token);
-}
-
-export async function getTrack(token, trackId) {
-  return spotifyGet(`/tracks/${encodeURIComponent(trackId)}`, token);
-}
-
-export async function createPlaylist(token, userId, { name, description = "", isPublic = false }) {
-  return spotifyRequest(`/users/${encodeURIComponent(userId)}/playlists`, token, {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      description,
-      public: isPublic,
-    }),
-  });
-}
-
-export async function addTracksToPlaylist(token, playlistId, uris = []) {
-  if (!uris.length) return null;
-
-  return spotifyRequest(`/playlists/${encodeURIComponent(playlistId)}/tracks`, token, {
-    method: "POST",
-    body: JSON.stringify({ uris }),
-  });
-}
-
-export function msToMinSec(ms) {
-  const total = Math.max(0, Math.floor((ms || 0) / 1000));
-  const m = Math.floor(total / 60);
-  const s = String(total % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
-
-export function formatNumber(value) {
-  if (value == null || Number.isNaN(value)) return "—";
-  try {
-    return new Intl.NumberFormat().format(value);
-  } catch {
-    return String(value);
-  }
+  return data.access_token;
 }
