@@ -88,29 +88,6 @@ function textRow(index, title, sub) {
   return el;
 }
 
-logoutBtn?.addEventListener("click", () => {
-  clearToken();
-  window.location.href = "index.html";
-});
-
-backBtn?.addEventListener("click", () => {
-  if (window.history.length > 1) {
-    window.history.back();
-    return;
-  }
-  window.location.href = "index.html";
-});
-
-function requireTokenOrBack() {
-  const token = getToken();
-  if (!token) {
-    window.location.href = "index.html";
-    return null;
-  }
-  logoutBtn?.classList.remove("hidden");
-  return token;
-}
-
 function getParams() {
   const url = new URL(window.location.href);
   return {
@@ -118,6 +95,29 @@ function getParams() {
     id: url.searchParams.get("id"),
   };
 }
+
+function requireTokenOrBack() {
+  const token = getToken();
+  if (!token) {
+    window.location.href = "index.html";
+    return null;
+  }
+  logoutBtn.classList.remove("hidden");
+  return token;
+}
+
+logoutBtn.addEventListener("click", () => {
+  clearToken();
+  window.location.href = "index.html";
+});
+
+backBtn.addEventListener("click", () => {
+  if (window.history.length > 1) {
+    window.history.back();
+    return;
+  }
+  window.location.href = "index.html";
+});
 
 async function renderArtist(token, id) {
   listStatus.textContent = "Loading…";
@@ -128,7 +128,7 @@ async function renderArtist(token, id) {
 
   heroType.textContent = "Artist";
   heroTitle.textContent = artist.name || "—";
-  heroSub.textContent = genres.slice(0, 3).join(", ") || "No genres";
+  heroSub.textContent = `${formatNumber(artist.followers?.total)} followers`;
 
   heroImg.src = img;
   heroImg.style.visibility = img ? "visible" : "hidden";

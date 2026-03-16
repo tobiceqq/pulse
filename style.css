@@ -13,7 +13,6 @@
   --primary-ink:#ffffff;
 
   --surface:#171726;
-  --surface-2:#1d1d30;
   --surface-hover:#23233a;
 
   --success:#22c55e;
@@ -37,7 +36,6 @@ body.light-theme{
   --primary-ink:#ffffff;
 
   --surface:#ffffff;
-  --surface-2:#f7f7fc;
   --surface-hover:#f1effa;
 
   --success:#15803d;
@@ -243,6 +241,7 @@ a:active{
 
 .btn-full{
   width:100%;
+  display:flex;
   justify-content:center;
 }
 

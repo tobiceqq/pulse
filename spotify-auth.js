@@ -65,7 +65,7 @@ export async function startLogin({ clientId, redirectUri, scopes }) {
     scope: scopes.join(" "),
     code_challenge_method: "S256",
     code_challenge: challenge,
-    show_dialog: "true",
+    show_dialog: "false",
   });
 
   window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
