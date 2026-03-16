@@ -4,7 +4,9 @@ const VERIFIER_KEY = "pulse_verifier_v1";
 function base64UrlEncode(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
@@ -20,17 +22,29 @@ async function sha256(text) {
   return crypto.subtle.digest("SHA-256", enc);
 }
 
-export function getToken() {
+function readTokenData() {
   const raw = localStorage.getItem(TOKEN_KEY);
   if (!raw) return null;
+
   try {
-    const t = JSON.parse(raw);
-    if (!t?.access_token || !t?.expires_at) return null;
-    if (Date.now() > t.expires_at) return null; // expired
-    return t.access_token;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.access_token || !parsed?.expires_at) return null;
+    if (Date.now() > parsed.expires_at) return null;
+    return parsed;
   } catch {
     return null;
   }
+}
+
+export function getToken() {
+  const tokenData = readTokenData();
+  return tokenData?.access_token || null;
+}
+
+export function getGrantedScopes() {
+  const tokenData = readTokenData();
+  const scopeString = tokenData?.scope || "";
+  return scopeString.split(" ").map((s) => s.trim()).filter(Boolean);
 }
 
 export function clearToken() {
@@ -61,13 +75,17 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
   const url = new URL(window.location.href);
 
   const error = url.searchParams.get("error");
-  if (error) throw new Error(`Spotify auth error: ${error}`);
+  if (error) {
+    throw new Error(`Spotify auth error: ${error}`);
+  }
 
   const code = url.searchParams.get("code");
-  if (!code) return null; // not a callback visit
+  if (!code) return null;
 
   const verifier = localStorage.getItem(VERIFIER_KEY);
-  if (!verifier) throw new Error("Missing code verifier. Try logging in again.");
+  if (!verifier) {
+    throw new Error("Missing code verifier. Try logging in again.");
+  }
 
   const body = new URLSearchParams({
     client_id: clientId,
@@ -79,7 +97,9 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
 
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: body.toString(),
   });
 
@@ -91,15 +111,22 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
   const data = await res.json();
   const expires_at = Date.now() + (data.expires_in * 1000) - 5000;
 
-  localStorage.setItem(TOKEN_KEY, JSON.stringify({
-    access_token: data.access_token,
-    expires_at
-  }));
+  localStorage.setItem(
+    TOKEN_KEY,
+    JSON.stringify({
+      access_token: data.access_token,
+      expires_at,
+      scope: data.scope || "",
+      token_type: data.token_type || "Bearer",
+    })
+  );
+
+  localStorage.removeItem(VERIFIER_KEY);
 
   url.searchParams.delete("code");
   url.searchParams.delete("state");
   url.searchParams.delete("error");
-  window.history.replaceState({}, document.title, url.toString());
+  window.history.replaceState({}, document.title, url.pathname + url.search);
 
   return data.access_token;
 }

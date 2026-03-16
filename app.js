@@ -1,4 +1,4 @@
-import { startLogin, handleRedirectAndGetToken, getToken, clearToken } from "./spotify-auth.js";
+import { startLogin, handleRedirectAndGetToken, getToken, clearToken, getGrantedScopes } from "./spotify-auth.js";
 import {
   getMe,
   getTopArtists,
@@ -17,9 +17,10 @@ const SCOPES = [
   "playlist-modify-private",
 ];
 
+const REQUIRED_PLAYLIST_SCOPE = "playlist-modify-private";
 const THEME_KEY = "pulse_theme";
 const AUTH_VERSION_KEY = "pulse_auth_scope_version";
-const AUTH_VERSION = "2";
+const AUTH_VERSION = "3";
 const TOP_LIMIT = 50;
 
 const landing = document.getElementById("landing");
@@ -99,6 +100,8 @@ function textCard(index, title, sub) {
 }
 
 function setError(message) {
+  if (!errorBox) return;
+
   if (!message) {
     errorBox.classList.add("hidden");
     errorBox.textContent = "";
@@ -111,12 +114,14 @@ function setError(message) {
 
 function setLoading(which, isLoading) {
   const value = isLoading ? "Loading…" : "";
-  if (which === "artists") artistsStatus.textContent = value;
-  if (which === "tracks") tracksStatus.textContent = value;
-  if (which === "genres") genresStatus.textContent = value;
+  if (which === "artists" && artistsStatus) artistsStatus.textContent = value;
+  if (which === "tracks" && tracksStatus) tracksStatus.textContent = value;
+  if (which === "genres" && genresStatus) genresStatus.textContent = value;
 }
 
 function setPlaylistStatus(message, type = "muted") {
+  if (!playlistStatus) return;
+
   playlistStatus.textContent = message || "";
   playlistStatus.classList.remove("success", "error-text");
 
@@ -125,16 +130,16 @@ function setPlaylistStatus(message, type = "muted") {
 }
 
 function showDashboard() {
-  landing.classList.add("hidden");
-  dashboard.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
+  landing?.classList.add("hidden");
+  dashboard?.classList.remove("hidden");
+  logoutBtn?.classList.remove("hidden");
   settingsBtn?.classList.remove("hidden");
 }
 
 function showLanding() {
-  landing.classList.remove("hidden");
-  dashboard.classList.add("hidden");
-  logoutBtn.classList.add("hidden");
+  landing?.classList.remove("hidden");
+  dashboard?.classList.add("hidden");
+  logoutBtn?.classList.add("hidden");
   settingsBtn?.classList.add("hidden");
 }
 
@@ -157,6 +162,10 @@ function getRangeLabel(range) {
   if (range === "short_term") return "Top Tracks - 4 Weeks";
   if (range === "medium_term") return "Top Tracks - 6 Months";
   return "Top Tracks - 1 Year";
+}
+
+function hasPlaylistPermission() {
+  return getGrantedScopes().includes(REQUIRED_PLAYLIST_SCOPE);
 }
 
 function renderArtists(items) {
@@ -220,6 +229,13 @@ function renderGenres(items) {
   });
 }
 
+function updatePlaylistButtonState() {
+  if (!createPlaylistBtn) return;
+
+  const canCreate = currentTracks.length > 0 && !!currentUser?.id && hasPlaylistPermission();
+  createPlaylistBtn.disabled = !canCreate;
+}
+
 async function loadProfile(token) {
   const me = await getMe(token);
   currentUser = me;
@@ -228,12 +244,15 @@ async function loadProfile(token) {
   email.textContent = me.email || "";
   avatar.src = me.images?.[0]?.url || "";
   avatar.style.visibility = avatar.src ? "visible" : "hidden";
+
+  updatePlaylistButtonState();
 }
 
 async function loadStats(token) {
   setError(null);
   setPlaylistStatus("");
-  createPlaylistBtn.disabled = true;
+  currentTracks = [];
+  updatePlaylistButtonState();
 
   setLoading("artists", true);
   setLoading("tracks", true);
@@ -255,10 +274,10 @@ async function loadStats(token) {
     renderTracks(trackItems);
     renderGenres(genreItems);
 
-    createPlaylistBtn.disabled = !currentTracks.length;
+    updatePlaylistButtonState();
   } catch (e) {
     currentTracks = [];
-    createPlaylistBtn.disabled = true;
+    updatePlaylistButtonState();
     setError(e.message || String(e));
   } finally {
     setLoading("artists", false);
@@ -269,7 +288,17 @@ async function loadStats(token) {
 
 async function handleCreatePlaylist() {
   const token = getToken();
+
   if (!token) {
+    setPlaylistStatus("Please log in again.", "error");
+    showLanding();
+    return;
+  }
+
+  if (!hasPlaylistPermission()) {
+    clearToken();
+    setPlaylistStatus("Please log in again to allow playlist creation.", "error");
+    setError("Spotify playlist permission is missing. Log in again and approve the requested access.");
     showLanding();
     return;
   }
@@ -307,23 +336,23 @@ async function handleCreatePlaylist() {
 
     setPlaylistStatus("Playlist created successfully.", "success");
 
-    if (playlist?.external_urls?.spotify) {
-      window.open(playlist.external_urls.spotify, "_blank", "noopener");
-    }
+    setTimeout(() => {
+      setPlaylistStatus("");
+    }, 4000);
   } catch (e) {
     const message = e.message || String(e);
 
     if (message.includes("403")) {
       clearToken();
-      setPlaylistStatus("Spotify needs new permission for playlist creation. Please log in again.", "error");
-      setError("Your previous login does not include playlist permission yet. Log in again and then try Create playlist once more.");
+      setPlaylistStatus("Please log in again and approve playlist access.", "error");
+      setError("Spotify denied playlist creation. This usually means the login token does not include playlist permission yet.");
       showLanding();
       return;
     }
 
     setPlaylistStatus(message, "error");
   } finally {
-    createPlaylistBtn.disabled = !currentTracks.length;
+    updatePlaylistButtonState();
   }
 }
 
@@ -347,11 +376,12 @@ logoutBtn?.addEventListener("click", () => {
   showLanding();
   setError(null);
   setPlaylistStatus("");
+  updatePlaylistButtonState();
 });
 
 createPlaylistBtn?.addEventListener("click", handleCreatePlaylist);
 
-document.querySelectorAll(".chip").forEach((btn) => {
+document.querySelectorAll(".range .chip").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document.querySelectorAll(".range .chip").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
@@ -371,7 +401,7 @@ document.querySelectorAll(".chip").forEach((btn) => {
   try {
     applyTheme();
     ensureAuthVersion();
-    createPlaylistBtn.disabled = true;
+    updatePlaylistButtonState();
 
     if (CLIENT_ID && CLIENT_ID !== "PASTE_YOUR_CLIENT_ID_HERE") {
       await handleRedirectAndGetToken({
@@ -396,5 +426,6 @@ document.querySelectorAll(".chip").forEach((btn) => {
     showLanding();
     setError(e.message || String(e));
     setPlaylistStatus("");
+    updatePlaylistButtonState();
   }
 })();
