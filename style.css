@@ -26,9 +26,9 @@ body.light-theme{
   --text:#171821;
   --muted:#61667a;
   --border:rgba(20,24,40,.10);
-  --primary:#8b5cf6;
-  --primary2:#7c3aed;
-  --primary3:#6d28d9;
+  --primary:#7c3aed;
+  --primary2:#6d28d9;
+  --primary3:#4c1d95;
   --primary-ink:#ffffff;
   --success:#15803d;
   --danger:#b91c1c;
@@ -187,7 +187,8 @@ a:active{
 }
 
 body.light-theme .btn{
-  background:rgba(255,255,255,.92);
+  background:rgba(20,20,40,.05);
+  color:var(--text);
 }
 
 .btn:hover{
@@ -211,26 +212,23 @@ body.light-theme .btn{
 }
 
 body.light-theme .btn.primary{
-  background:rgba(255,255,255,.95);
-  border-color:rgba(139,92,246,.34);
-  color:var(--primary3);
+  background:linear-gradient(180deg, var(--primary), var(--primary2));
+  border-color:var(--primary2);
+  color:white;
 }
 
 body.light-theme .btn.primary:hover{
-  background:rgba(248,245,255,.98);
-  border-color:rgba(124,58,237,.44);
+  filter:brightness(1.1);
 }
 
 body.light-theme .btn.ghost{
-  background:linear-gradient(180deg, var(--primary), var(--primary2));
-  border-color:rgba(124,58,237,.36);
-  color:var(--primary-ink);
-  font-weight:800;
+  background:transparent;
+  border-color:var(--border);
+  color:var(--text);
 }
 
 body.light-theme .btn.ghost:hover{
-  border-color:rgba(124,58,237,.5);
-  filter:brightness(.98);
+  background:rgba(20,20,40,.05);
 }
 
 .profile{
@@ -341,7 +339,7 @@ body.light-theme .chip{
 .section-actions{
   display:flex;
   flex-direction:column;
-  align-items:flex-start;
+  align-items:stretch;
   gap:8px;
   margin-top:14px;
   padding-top:14px;

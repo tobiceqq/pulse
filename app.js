@@ -107,7 +107,7 @@ function setLoading(which, isLoading) {
 
 function setPlaylistStatus(message, type = "muted") {
   playlistStatus.textContent = message || "";
-  playlistStatus.classList.remove("success", "error-text");
+  playlistStatus.className = "muted tiny";
   if (type === "success") playlistStatus.classList.add("success");
   if (type === "error") playlistStatus.classList.add("error-text");
 }
@@ -142,9 +142,9 @@ function buildTopGenres(artists) {
 }
 
 function getRangeLabel(range) {
-  if (range === "short_term") return "Top Tracks - 4 Weeks";
-  if (range === "medium_term") return "Top Tracks - 6 Months";
-  return "Top Tracks - 1 Year";
+  if (range === "short_term") return "4 Weeks";
+  if (range === "medium_term") return "6 Months";
+  return "1 Year";
 }
 
 function renderArtists(items) {
@@ -257,27 +257,15 @@ async function loadStats(token) {
 
 async function handleCreatePlaylist() {
   const token = getToken();
-  if (!token) {
-    showLanding();
-    return;
-  }
+  if (!token) return;
 
   if (!currentUser?.id) {
-    setPlaylistStatus("User profile is not loaded yet.", "error");
+    setPlaylistStatus("User profile not loaded.", "error");
     return;
   }
 
   if (!currentTracks.length) {
-    setPlaylistStatus("There are no tracks to add.", "error");
-    return;
-  }
-
-  const uris = currentTracks
-    .map((track) => track.uri)
-    .filter(Boolean);
-
-  if (!uris.length) {
-    setPlaylistStatus("No valid Spotify tracks were found.", "error");
+    setPlaylistStatus("No tracks found to create playlist.", "error");
     return;
   }
 
@@ -285,23 +273,31 @@ async function handleCreatePlaylist() {
   setPlaylistStatus("Creating playlist...");
 
   try {
+    const name = `Pulse • ${getRangeLabel(currentRange)}`;
+    const description = `My top tracks from the last ${getRangeLabel(currentRange).toLowerCase()}, created via Pulse.`;
+    
+    // 1. Create playlist
     const playlist = await createPlaylist(token, currentUser.id, {
-      name: `Pulse • ${getRangeLabel(currentRange)}`,
-      description: `Created with Pulse from your current top tracks (${currentRange}).`,
-      isPublic: false,
+      name,
+      description,
+      isPublic: false
     });
 
-    await addTracksToPlaylist(token, playlist.id, uris);
+    // 2. Add tracks
+    const trackUris = currentTracks.map(t => t.uri);
+    await addTracksToPlaylist(token, playlist.id, trackUris);
 
-    setPlaylistStatus("Playlist created successfully.", "success");
-
-    if (playlist?.external_urls?.spotify) {
-      window.open(playlist.external_urls.spotify, "_blank", "noopener");
+    setPlaylistStatus("Playlist created successfully!", "success");
+    
+    // Open in new tab
+    if (playlist.external_urls?.spotify) {
+      window.open(playlist.external_urls.spotify, "_blank");
     }
   } catch (e) {
-    setPlaylistStatus(e.message || String(e), "error");
+    console.error(e);
+    setPlaylistStatus("Failed to create playlist.", "error");
   } finally {
-    createPlaylistBtn.disabled = !currentTracks.length;
+    createPlaylistBtn.disabled = false;
   }
 }
 
@@ -348,8 +344,7 @@ document.querySelectorAll(".chip").forEach((btn) => {
 (async function boot() {
   try {
     applyTheme();
-    createPlaylistBtn.disabled = true;
-
+    
     if (CLIENT_ID && CLIENT_ID !== "PASTE_YOUR_CLIENT_ID_HERE") {
       await handleRedirectAndGetToken({
         clientId: CLIENT_ID,
