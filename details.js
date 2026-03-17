@@ -47,6 +47,7 @@ function setError(message) {
     errorBox.textContent = "";
     return;
   }
+
   errorBox.textContent = message;
   errorBox.classList.remove("hidden");
 }
@@ -96,22 +97,16 @@ function getParams() {
   };
 }
 
-function requireTokenOrBack() {
-  const token = getToken();
-  if (!token) {
-    window.location.href = "index.html";
-    return null;
-  }
-  logoutBtn.classList.remove("hidden");
-  return token;
+function requireToken() {
+  return getToken();
 }
 
-logoutBtn.addEventListener("click", () => {
+logoutBtn?.addEventListener("click", () => {
   clearToken();
   window.location.href = "index.html";
 });
 
-backBtn.addEventListener("click", () => {
+backBtn?.addEventListener("click", () => {
   if (window.history.length > 1) {
     window.history.back();
     return;
@@ -153,6 +148,7 @@ async function renderArtist(token, id) {
   listStatus.textContent = "";
   detailsCard.classList.remove("hidden");
   listCard.classList.remove("hidden");
+  logoutBtn?.classList.remove("hidden");
 }
 
 async function renderTrack(token, id) {
@@ -175,16 +171,8 @@ async function renderTrack(token, id) {
   heroStats.appendChild(statPill("Album", track.album?.name || "—"));
   heroStats.appendChild(statPill("Popularity", track.popularity != null ? `${track.popularity}/100` : "—"));
 
-  listTitle.textContent = "More";
+  listTitle.textContent = "Artists";
   listItems.innerHTML = "";
-
-  const albumRow = itemRow(
-    1,
-    track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "",
-    track.album?.name || "Album",
-    `Release: ${track.album?.release_date || "—"}`
-  );
-  listItems.appendChild(albumRow);
 
   const artistDetails = await Promise.all(
     (track.artists || []).map(async (artist) => {
@@ -202,7 +190,7 @@ async function renderTrack(token, id) {
     const popularity = artist.popularity != null ? `Popularity ${artist.popularity}/100` : "Popularity —";
     const sub = genres ? `${genres} • ${popularity}` : popularity;
 
-    const row = itemRow(i + 2, aImg, artist.name || "Unknown artist", sub);
+    const row = itemRow(i + 1, aImg, artist.name || "Unknown artist", sub);
     row.classList.add("clickable");
     row.addEventListener("click", () => {
       window.location.href = `details.html?type=artist&id=${encodeURIComponent(artist.id)}`;
@@ -214,6 +202,7 @@ async function renderTrack(token, id) {
   listStatus.textContent = "";
   detailsCard.classList.remove("hidden");
   listCard.classList.remove("hidden");
+  logoutBtn?.classList.remove("hidden");
 }
 
 (async function boot() {
@@ -221,20 +210,17 @@ async function renderTrack(token, id) {
     applyTheme();
     setError(null);
 
-    const token = requireTokenOrBack();
-    if (!token) return;
-
-    try {
-      await getMe(token);
-    } catch {
-      clearToken();
-      window.location.href = "index.html";
+    const token = requireToken();
+    if (!token) {
+      setError("You are not logged in. Please go back to the homepage and log in.");
       return;
     }
 
+    await getMe(token);
+
     const { type, id } = getParams();
     if (!type || !id) {
-      window.location.href = "index.html";
+      setError("Missing details parameters.");
       return;
     }
 
@@ -248,7 +234,7 @@ async function renderTrack(token, id) {
       return;
     }
 
-    window.location.href = "index.html";
+    setError("Unknown details type.");
   } catch (e) {
     setError(e.message || String(e));
   }

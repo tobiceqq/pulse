@@ -1,6 +1,6 @@
-const TOKEN_KEY = "pulse_token_final_v1";
-const VERIFIER_KEY = "pulse_verifier_final_v1";
-const SCOPE_KEY = "pulse_scope_final_v1";
+const TOKEN_KEY = "pulse_token_consistent_v1";
+const VERIFIER_KEY = "pulse_verifier_consistent_v1";
+const SCOPE_KEY = "pulse_scope_consistent_v1";
 
 function base64UrlEncode(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -67,7 +67,7 @@ export async function startLogin({ clientId, redirectUri, scopes }) {
     scope: scopes.join(" "),
     code_challenge_method: "S256",
     code_challenge: challenge,
-    show_dialog: "true",
+    show_dialog: "false",
   });
 
   window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
