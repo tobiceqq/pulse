@@ -1,6 +1,6 @@
-const TOKEN_KEY = "pulse_token_v3";
-const VERIFIER_KEY = "pulse_verifier_v3";
-const SCOPES_KEY = "pulse_scopes_v3";
+const TOKEN_KEY = "pulse_token_final_v1";
+const VERIFIER_KEY = "pulse_verifier_final_v1";
+const SCOPE_KEY = "pulse_scope_final_v1";
 
 function base64UrlEncode(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -43,20 +43,20 @@ export function getToken() {
 
 export function getGrantedScopes() {
   const tokenData = readTokenData();
-  const scopeString = tokenData?.scope || localStorage.getItem(SCOPES_KEY) || "";
+  const scopeString = tokenData?.scope || localStorage.getItem(SCOPE_KEY) || "";
   return scopeString.split(" ").map((s) => s.trim()).filter(Boolean);
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(VERIFIER_KEY);
-  localStorage.removeItem(SCOPES_KEY);
+  localStorage.removeItem(SCOPE_KEY);
 }
 
 export async function startLogin({ clientId, redirectUri, scopes }) {
   const verifier = randomString(64);
   localStorage.setItem(VERIFIER_KEY, verifier);
-  localStorage.setItem(SCOPES_KEY, scopes.join(" "));
+  localStorage.setItem(SCOPE_KEY, scopes.join(" "));
 
   const challenge = base64UrlEncode(await sha256(verifier));
 
@@ -67,7 +67,7 @@ export async function startLogin({ clientId, redirectUri, scopes }) {
     scope: scopes.join(" "),
     code_challenge_method: "S256",
     code_challenge: challenge,
-    show_dialog: "false",
+    show_dialog: "true",
   });
 
   window.location.href = `https://accounts.spotify.com/authorize?${params.toString()}`;
@@ -86,7 +86,7 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
 
   const verifier = localStorage.getItem(VERIFIER_KEY);
   if (!verifier) {
-    throw new Error("Missing code verifier. Try logging in again.");
+    throw new Error("Missing code verifier. Please log in again.");
   }
 
   const body = new URLSearchParams({
@@ -118,7 +118,7 @@ export async function handleRedirectAndGetToken({ clientId, redirectUri }) {
     JSON.stringify({
       access_token: data.access_token,
       token_type: data.token_type || "Bearer",
-      scope: data.scope || localStorage.getItem(SCOPES_KEY) || "",
+      scope: data.scope || localStorage.getItem(SCOPE_KEY) || "",
       expires_at: expiresAt,
     })
   );

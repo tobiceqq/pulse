@@ -16,6 +16,9 @@ import {
 
 const CLIENT_ID = "95a992ec0b484251be1e6dd3ada29d35";
 const REDIRECT_URI = "https://tobiceqq.github.io/pulse/";
+const REQUIRED_PLAYLIST_SCOPE = "playlist-modify-private";
+const THEME_KEY = "pulse_theme";
+const TOP_LIMIT = 50;
 
 const SCOPES = [
   "user-top-read",
@@ -23,10 +26,6 @@ const SCOPES = [
   "user-read-private",
   "playlist-modify-private",
 ];
-
-const REQUIRED_PLAYLIST_SCOPE = "playlist-modify-private";
-const THEME_KEY = "pulse_theme";
-const TOP_LIMIT = 50;
 
 const landing = document.getElementById("landing");
 const dashboard = document.getElementById("dashboard");
@@ -134,6 +133,10 @@ function showLanding() {
   settingsBtn?.classList.add("hidden");
 }
 
+function hasPlaylistPermission() {
+  return getGrantedScopes().includes(REQUIRED_PLAYLIST_SCOPE);
+}
+
 function buildTopGenres(artists) {
   const genreCount = new Map();
 
@@ -155,10 +158,6 @@ function getRangeLabel(range) {
   return "Top Tracks - 1 Year";
 }
 
-function hasPlaylistPermission() {
-  return getGrantedScopes().includes(REQUIRED_PLAYLIST_SCOPE);
-}
-
 function updatePlaylistButtonState() {
   const canCreate =
     !isCreatingPlaylist &&
@@ -171,6 +170,7 @@ function updatePlaylistButtonState() {
 
 function renderArtists(items) {
   artistsBox.innerHTML = "";
+
   if (!items?.length) {
     artistsBox.innerHTML = `<div class="muted tiny">No top artists yet.</div>`;
     return;
@@ -181,12 +181,20 @@ function renderArtists(items) {
     const genres = (a.genres || []).slice(0, 2).join(", ");
     const popularity = a.popularity != null ? `Popularity ${a.popularity}/100` : "Popularity —";
     const sub = genres ? `${genres} • ${popularity}` : popularity;
-    artistsBox.appendChild(itemCard(i + 1, img, a.name, sub));
+
+    const el = itemCard(i + 1, img, a.name, sub);
+    el.classList.add("clickable");
+    el.addEventListener("click", () => {
+      window.location.href = `details.html?type=artist&id=${encodeURIComponent(a.id)}`;
+    });
+
+    artistsBox.appendChild(el);
   });
 }
 
 function renderTracks(items) {
   tracksBox.innerHTML = "";
+
   if (!items?.length) {
     tracksBox.innerHTML = `<div class="muted tiny">No top tracks yet.</div>`;
     return;
@@ -195,19 +203,29 @@ function renderTracks(items) {
   items.forEach((t, i) => {
     const img = t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || "";
     const artists = (t.artists || []).map((x) => x.name).join(", ");
-    tracksBox.appendChild(itemCard(i + 1, img, t.name, artists || "—"));
+    const el = itemCard(i + 1, img, t.name, artists || "—");
+
+    el.classList.add("clickable");
+    el.addEventListener("click", () => {
+      window.location.href = `details.html?type=track&id=${encodeURIComponent(t.id)}`;
+    });
+
+    tracksBox.appendChild(el);
   });
 }
 
 function renderGenres(items) {
   genresBox.innerHTML = "";
+
   if (!items?.length) {
     genresBox.innerHTML = `<div class="muted tiny">No top genres yet.</div>`;
     return;
   }
 
   items.forEach((g, i) => {
-    genresBox.appendChild(textCard(i + 1, g.name, `${g.count} artist${g.count === 1 ? "" : "s"}`));
+    genresBox.appendChild(
+      textCard(i + 1, g.name, `${g.count} artist${g.count === 1 ? "" : "s"}`)
+    );
   });
 }
 
@@ -264,14 +282,14 @@ async function handleCreatePlaylist() {
   if (isCreatingPlaylist) return;
 
   const token = getToken();
+
   if (!token) {
     setPlaylistStatus("Please log in again.", "error");
-    showLanding();
     return;
   }
 
   if (!hasPlaylistPermission()) {
-    setPlaylistStatus("Missing playlist permission. Log in once again and approve Spotify access.", "error");
+    setPlaylistStatus("Please log in once again and approve playlist access.", "error");
     return;
   }
 
@@ -281,7 +299,7 @@ async function handleCreatePlaylist() {
   }
 
   if (!currentTracks.length) {
-    setPlaylistStatus("There are no tracks to add.", "error");
+    setPlaylistStatus("No tracks available.", "error");
     return;
   }
 
@@ -318,11 +336,15 @@ async function handleCreatePlaylist() {
 }
 
 loginBtn?.addEventListener("click", async () => {
-  await startLogin({
-    clientId: CLIENT_ID,
-    redirectUri: REDIRECT_URI,
-    scopes: SCOPES,
-  });
+  try {
+    await startLogin({
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+      scopes: SCOPES,
+    });
+  } catch (e) {
+    setError(e.message || String(e));
+  }
 });
 
 logoutBtn?.addEventListener("click", () => {
@@ -344,10 +366,7 @@ document.querySelectorAll(".range .chip").forEach((btn) => {
     currentRange = btn.dataset.range;
 
     const token = getToken();
-    if (!token) {
-      showLanding();
-      return;
-    }
+    if (!token) return;
 
     await loadStats(token);
   });
